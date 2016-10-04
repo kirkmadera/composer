@@ -65,7 +65,7 @@ EOT
         $file = Factory::getComposerFile();
 
         $jsonFile = new JsonFile($file);
-        $composer = $jsonFile->read();
+        $composer = $this->normalizeComposerConfig($jsonFile->read());
         $composerBackup = file_get_contents($jsonFile->getPath());
 
         $json = new JsonConfigSource($jsonFile);
@@ -79,6 +79,7 @@ EOT
         }
 
         foreach ($packages as $package) {
+            $package = $this->normalizePackageName($package);
             if (isset($composer[$type][$package])) {
                 $json->removeLink($type, $package);
             } elseif (isset($composer[$altType][$package])) {
@@ -138,5 +139,39 @@ EOT
         }
 
         return $status;
+    }
+    
+    /**
+     * Normalize package names in composer config
+     *
+     * @var array $composerConfig
+     * @return array
+     */
+    private function normalizeComposerConfig(array $composerConfig) 
+    {
+        foreach (['require', 'require-dev'] as $type) {
+            if (!empty($composerConfig[$type])) {
+                foreach ($composerConfig[$type] as $name => $package) {
+                    $normalizedName = $this->normalizePackageName($name);
+                    if ($name == $normalizedName) {
+                        continue;
+                    }
+                    $composerConfig[$normalizedName] = $composerConfig[$name];
+                    unset($composerConfig[$name]);
+                }
+            }
+        }
+        return $composerConfig;
+    }
+    
+    /**
+     * Normalize a package name
+     *
+     * @var string $packageName
+     * @return string
+     */
+    private function normalizePackageName($packageName)
+    {
+        return strtolower($packageName);
     }
 }
